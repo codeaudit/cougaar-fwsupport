@@ -86,7 +86,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */  
   private final static String SERVLET_SERVICE_CLASS =
     "org.cougaar.lib.web.service.RootServletService";
-  private Class servletServiceClass;
+  protected Class _servletServiceClass;
   
   /**
    * Called via introspection by the Container. We use it to get the
@@ -111,21 +111,21 @@ public class HTTPLinkProtocol extends LinkProtocol {
     // we must change this to org.cougaar.lib.web.service.RootServletService
     // instead of ServletService in HEAD.
     try {
-      servletServiceClass = Class.forName(SERVLET_SERVICE_CLASS);
+      _servletServiceClass = Class.forName(SERVLET_SERVICE_CLASS);
     }
     catch (ClassNotFoundException e) {
       // This is B11_2 or earlier version. Use the ServletService instead.
-      servletServiceClass = ServletService.class;
+      _servletServiceClass = ServletService.class;
     }
     if (_log.isInfoEnabled()) {
-      _log.info("servletServiceClass: " + servletServiceClass.getName());
+      _log.info("servletServiceClass: " + _servletServiceClass.getName());
     }
-    if (sb.hasService(servletServiceClass)) {
+    if (sb.hasService(_servletServiceClass)) {
       init(sb);
     } else {
       sb.addServiceListener(new ServiceAvailableListener(){
           public void serviceAvailable(ServiceAvailableEvent ae) {
-            if (servletServiceClass.isAssignableFrom(ae.getService())) {
+            if (_servletServiceClass.isAssignableFrom(ae.getService())) {
               init(ae.getServiceBroker());
               ae.getServiceBroker().removeServiceListener(this);
             }
@@ -155,7 +155,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * the ServletService.unregisterAll() is invoked. 
    */
   public void unload() {
-    getServiceBroker().releaseService(this, servletServiceClass, _servletService);  
+    getServiceBroker().releaseService(this, _servletServiceClass, _servletService);  
     super.unload();
   } //unload() 
   
@@ -181,7 +181,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */
   protected void setPort(Service ss) {
     try {
-      Method m = ss.getClass().getMethod("getHttpPort", null);
+      Method m = _servletServiceClass.getMethod("getHttpPort", null);
       Integer aPort = (Integer)m.invoke(ss, null);
       _port = aPort.intValue();
     }
@@ -227,10 +227,10 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */
   private void init(ServiceBroker sb) {
     Service servletService = (Service)
-      sb.getService(this, servletServiceClass, null);
+      sb.getService(this, _servletServiceClass, null);
     setPort(servletService);
     setURI();
-    sb.releaseService(this, servletServiceClass, servletService); 
+    sb.releaseService(this, _servletServiceClass, servletService); 
   } //init(ServiceBroker sb)
 
   /**
@@ -238,7 +238,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */
   private void registerServlet(ServiceBroker sb) {
     _servletService = (Service)
-      sb.getService(this, servletServiceClass, null);
+      sb.getService(this, _servletServiceClass, null);
     try {
       if(_log.isDebugEnabled()) {
         _log.debug("registering " + getPath() + " with " + _servletService);
@@ -248,7 +248,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
       // TODO: this can be changed once B11_2 is no longer supported.
       //_servletService.register(getPath(), createServlet());
       Class parmTypes[] = {String.class, Servlet.class};
-      Method m = _servletService.getClass().getMethod("register", parmTypes);
+      Method m = _servletServiceClass.getMethod("register", parmTypes);
       Object parmValues[] = {getPath(), createServlet()};
       m.invoke(_servletService, parmValues);
     } catch(IllegalArgumentException iae) {

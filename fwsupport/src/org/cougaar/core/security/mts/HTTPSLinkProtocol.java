@@ -46,13 +46,13 @@ public class HTTPSLinkProtocol extends HTTPLinkProtocol {
       // Using introspecto to support both B11_2 and HEAD.
       // This can be changed to the following line once B11_2 is no longer supported.
       //httpsPort = ss.getHttpsPort();
-      Method m = ss.getClass().getMethod("getHttpsPort", null);
+      Method m = _servletServiceClass.getMethod("getHttpsPort", null);
       Integer aPort = (Integer)m.invoke(ss, null);
       httpsPort = aPort.intValue();
     }
     catch (Exception e) {
       if (_log.isErrorEnabled()) {
-        _log.error("Unable to set HTTPS port");
+        _log.error("Unable to set HTTPS port", e);
       }
     }
     if(httpsPort == -1) {
