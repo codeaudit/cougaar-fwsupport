@@ -357,11 +357,15 @@ public class HTTPLinkProtocol extends LinkProtocol {
           }
           throw (MisdeliveredMessageException) response;
         } else {
-          throw new CommFailureException((Exception) response);
+          CommFailureException cfe 
+            = new CommFailureException((Exception) response);
+          cfe.initCause((Exception) response);
+          throw cfe;
         }
       } catch (Exception e) {
-        //e.printStackTrace();
-        throw new CommFailureException(e);
+        CommFailureException cfe = new CommFailureException(e);
+        cfe.initCause(e);
+        throw cfe;
       }
     } //forwardMessage(AttributedMessage message)
 
