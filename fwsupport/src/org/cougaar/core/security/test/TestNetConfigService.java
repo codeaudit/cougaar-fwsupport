@@ -36,6 +36,7 @@ import java.util.Set;
 import org.cougaar.core.component.BindingSite;
 import org.cougaar.core.component.ServiceBroker;
 import org.cougaar.core.component.ServiceProvider;
+import org.cougaar.core.node.NodeControlService;
 import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.security.services.network.NetworkConfigurationService;
 import org.cougaar.core.service.AgentIdentificationService;
@@ -63,6 +64,7 @@ public class TestNetConfigService
   public void setupSubscriptions()
   {
     BindingSite bs = getBindingSite();
+
     _sb = bs.getServiceBroker();
     _log = (LoggingService) _sb.getService(this,
                                            LoggingService.class,
@@ -76,7 +78,19 @@ public class TestNetConfigService
     if (_log.isInfoEnabled()) {
       _log.info("Initializing the Network Configuration Service");
     }
-    _sb.addService(NetworkConfigurationService.class, this);
+
+    ServiceBroker rootServiceBroker = null;
+    NodeControlService nodeControlService = (NodeControlService)
+      _sb.getService(this, NodeControlService.class, null);
+    if (nodeControlService != null) {
+      rootServiceBroker = nodeControlService.getRootServiceBroker();
+      if (rootServiceBroker == null) {
+	throw new RuntimeException("Unable to get root service broker");
+      } else {
+        rootServiceBroker.addService(NetworkConfigurationService.class, this);
+      }
+    }
+
     try {
       readLanInfo();
     } catch (IOException ioe) {
@@ -129,8 +143,8 @@ public class TestNetConfigService
 
 
   public Object getService(ServiceBroker sb, 
-                    Object requestor, 
-                    Class serviceClass)
+                           Object requestor, 
+                           Class serviceClass)
   {
     return this;
   }
