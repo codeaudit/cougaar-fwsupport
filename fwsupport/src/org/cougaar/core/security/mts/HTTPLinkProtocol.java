@@ -115,7 +115,9 @@ public class HTTPLinkProtocol extends LinkProtocol {
       // This is B11_2 or earlier version. Use the ServletService instead.
       servletServiceClass = ServletService.class;
     }
-    
+    if (_log.isInfoEnabled()) {
+      _log.info("servletServiceClass: " + servletServiceClass.getName());
+    }
     if (sb.hasService(servletServiceClass)) {
       init(sb);
     } else {
