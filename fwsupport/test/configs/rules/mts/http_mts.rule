@@ -2,16 +2,27 @@
 ####################################################
 # Rule to insert JaasAgentBinder
 
+
+require 'security/lib/cipVersion'
+
 if !(defined?($MTS_PROTOCOL)) then
    $MTS_PROTOCOL = "http"
 end
 
-httpLinkProtocol = "org.cougaar.core.security.mts.HTTPLinkProtocol"
+b11_2_httpLinkProtocol = "org.cougaar.core.security.mts.HTTPLinkProtocol"
+b11_4_httpLinkProtocol = "org.cougaar.mts.http.HTTPLinkProtocol"
+currentHttpLinkProtocol = nil
 protocolInsertion = "Node.AgentManager.Agent.MessageTransport.Component"
+
+if $cip_version_b11_4_or_above
+    currentHttpLinkProtocol = b11_4_httpLinkProtocol
+else
+    currentHttpLinkProtocol = b11_2_httpLinkProtocol
+end
 
 society.each_node do |node_agent|
   node_agent.add_component do |c|
-    c.classname = httpLinkProtocol
+    c.classname = currentHttpLinkProtocol
     c.insertionpoint = protocolInsertion
   end
 end
