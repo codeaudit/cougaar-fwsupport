@@ -359,12 +359,16 @@ public class HTTPLinkProtocol extends LinkProtocol {
         } else {
           CommFailureException cfe 
             = new CommFailureException((Exception) response);
-          cfe.initCause((Exception) response);
+          if (_log.isWarnEnabled()) {
+            _log.warn("Exception forwarding message", (Exception) response);
+          }
           throw cfe;
         }
       } catch (Exception e) {
         CommFailureException cfe = new CommFailureException(e);
-        cfe.initCause(e);
+        if (_log.isWarnEnabled()) {
+          _log.warn("Exception forwarding message", e);
+        }
         throw cfe;
       }
     } //forwardMessage(AttributedMessage message)
