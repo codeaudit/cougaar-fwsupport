@@ -25,20 +25,51 @@
 
 package org.cougaar.core.security.network;
 
+import org.cougaar.core.qos.metrics.MetricsService;
+import org.cougaar.core.qos.metrics.Metric;
 import org.cougaar.core.component.ServiceBroker;
 import org.cougaar.core.security.services.network.NetworkConfigurationService;
-
+import org.cougaar.core.security.util.NodeInfo;
+import org.cougaar.util.log.Logger;
+import org.cougaar.util.log.LoggerFactory;
 
 public class NetworkConfigurationServiceImpl
   implements NetworkConfigurationService
 {
-  public NetworkConfigurationServiceImpl(ServiceBroker sb)
-  {
-    ;
+  private MetricsService metricsService = null;
+  private ServiceBroker serviceBroker;
+  protected static Logger log;
+
+  static {
+    log = LoggerFactory.getInstance().createLogger(NetworkConfigurationServiceImpl.class);
   }
 
-  public int connectionAttributes(String source, String target)
+  public NetworkConfigurationServiceImpl(ServiceBroker sb)
   {
+    serviceBroker = sb;
+  }
+
+  public int connectionAttributes(String target)
+  {
+    if (metricsService == null) {
+      metricsService = (MetricsService)serviceBroker.getService(
+        this, MetricsService.class, null);
+    }
+ 
+    if (metricsService == null) {
+      if (log.isDebugEnabled()) {
+        log.debug("Metrics Service not available!");
+      }
+    }
+    else {
+      String path = "NODE(" + NodeInfo.getNodeName() 
+        + "):Destination(" + target + "):OnSameSecureLAN";
+      Metric metric = metricsService.getValue(path);
+
+      if (metric.booleanValue()) {
+        return NetworkConfigurationService.ConnectProtectedLan; 
+      }
+    }
     return NetworkConfigurationService.ConnectNormal;
   }
 
