@@ -82,8 +82,10 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * The name of the servlet service.
    * This is needed to support both Cougaar B11_2 and HEAD.
    */  
-  private final static String SERVLET_SERVICE_CLASS = "org.cougaar.lib.web.service.RootServletService";
-   
+  private final static String SERVLET_SERVICE_CLASS =
+    "org.cougaar.lib.web.service.RootServletService";
+  private Class servletServiceClass;
+  
   /**
    * Called via introspection by the Container. We use it to get the
    * node name for the HTTP(S) URI.
@@ -106,14 +108,20 @@ public class HTTPLinkProtocol extends LinkProtocol {
     // NOTE: only the HEAD contains the RootServletService class.
     // we must change this to org.cougaar.lib.web.service.RootServletService
     // instead of ServletService in HEAD.
-    if (sb.hasService(RootServletService.class)) {
+    try {
+      servletServiceClass = Class.forName(SERVLET_SERVICE_CLASS);
     }
-    else if (sb.hasService(ServletService.class)) {
+    catch (ClassNotFoundException e) {
+      // This is B11_2 or earlier version. Use the ServletService instead.
+      servletServiceClass = ServletService.class;
+    }
+    
+    if (sb.hasService(servletServiceClass)) {
       init(sb);
     } else {
       sb.addServiceListener(new ServiceAvailableListener(){
           public void serviceAvailable(ServiceAvailableEvent ae) {
-            if (ServletService.class.isAssignableFrom(ae.getService())) {
+            if (servletServiceClass.isAssignableFrom(ae.getService())) {
               init(ae.getServiceBroker());
               ae.getServiceBroker().removeServiceListener(this);
             }
@@ -143,7 +151,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * the ServletService.unregisterAll() is invoked. 
    */
   public void unload() {
-    getServiceBroker().releaseService(this, ServletService.class, _servletService);  
+    getServiceBroker().releaseService(this, servletServiceClass, _servletService);  
     super.unload();
   } //unload() 
   
@@ -205,10 +213,10 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */
   private void init(ServiceBroker sb) {
     ServletService servletService = (ServletService) 
-      sb.getService(this, ServletService.class, null);
+      sb.getService(this, servletServiceClass, null);
     setPort(servletService);
     setURI();
-    sb.releaseService(this, ServletService.class, servletService); 
+    sb.releaseService(this, servletServiceClass, servletService); 
   } //init(ServiceBroker sb)
 
   /**
@@ -216,7 +224,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    */
   private void registerServlet(ServiceBroker sb) {
     _servletService = (ServletService) 
-      sb.getService(this, ServletService.class, null);
+      sb.getService(this, servletServiceClass, null);
     try {
       if(_log.isDebugEnabled()) {
         _log.debug("registering " + getPath() + " with " + _servletService);
