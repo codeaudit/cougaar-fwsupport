@@ -1,0 +1,12 @@
+#!/usr/bin/ruby
+####################################################
+# PolicyInitAgentPlugin
+
+
+plugin = "org.cougaar.core.security.network.NetworkConfigurationPlugin"
+
+society.each_node do |node|
+  node.add_component do |c|
+    c.classname = plugin
+  end
+end
