@@ -33,6 +33,16 @@ import org.cougaar.core.security.util.NodeInfo;
 import org.cougaar.util.log.Logger;
 import org.cougaar.util.log.LoggerFactory;
 
+/**
+ * This is not a recommended implmentation of the network
+ * configuration service.  It was used for demonstration purposes to
+ * prove some capabilities of the UltraLog system.  It measures
+ * whether two hosts are on the same lan by measuring ping time for
+ * messages between two hosts.  One possible approach would be to
+ * generalize the network configuration service implementation in the
+ * org.cougaar.core.security.test directory of the fwsupport package.
+ */
+
 public class NetworkConfigurationServiceImpl
   implements NetworkConfigurationService
 {
