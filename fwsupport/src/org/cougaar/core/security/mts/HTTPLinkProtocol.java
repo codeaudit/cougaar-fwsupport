@@ -77,7 +77,13 @@ public class HTTPLinkProtocol extends LinkProtocol {
   protected int _port = -1;
   protected String _nodeName;
   public final String SERVLET_URI = "/httpmts";
-     
+
+  /**
+   * The name of the servlet service.
+   * This is needed to support both Cougaar B11_2 and HEAD.
+   */  
+  private final static String SERVLET_SERVICE_CLASS = "org.cougaar.lib.web.service.RootServletService";
+   
   /**
    * Called via introspection by the Container. We use it to get the
    * node name for the HTTP(S) URI.
@@ -98,9 +104,11 @@ public class HTTPLinkProtocol extends LinkProtocol {
     _log = (LoggingService)sb.getService(this, LoggingService.class, null);
     // the ServletService here is the RootServletService
     // NOTE: only the HEAD contains the RootServletService class.
-    // we must change this to oorg.cougaar.lib.web.service.RootServletService
+    // we must change this to org.cougaar.lib.web.service.RootServletService
     // instead of ServletService in HEAD.
-    if (sb.hasService(ServletService.class)) {
+    if (sb.hasService(RootServletService.class)) {
+    }
+    else if (sb.hasService(ServletService.class)) {
       init(sb);
     } else {
       sb.addServiceListener(new ServiceAvailableListener(){
@@ -243,7 +251,9 @@ public class HTTPLinkProtocol extends LinkProtocol {
       _nodeURI = new URI(getProtocol() + "://" + me.getHostName() + ':' + 
                          _port + "/$" + _nodeName + getPath());
     } catch (Exception e) {
-      e.printStackTrace();
+      if (_log.isErrorEnabled()) {
+        _log.error("Unable to set node URI", e);
+      }
     }
   } //setURI()
 
@@ -266,6 +276,27 @@ public class HTTPLinkProtocol extends LinkProtocol {
 
   public void registerClient(MessageTransportClient client) {
     MessageAddress addr = client.getMessageAddress();
+    if (addr == null) {
+      String s = "Unable to register client. Client address is null";
+      if (_log.isErrorEnabled()) {
+        _log.error(s);
+      }
+      throw new RuntimeException(s);
+    }
+    if (_nodeURI == null) {
+      String s = "Unable to register client. node URI is null";
+      if (_log.isErrorEnabled()) {
+        _log.error(s);
+      }
+      throw new RuntimeException(s);
+    }
+    if (getProtocolType() == null) {
+      String s = "Unable to register client. Protocol type is null";
+      if (_log.isErrorEnabled()) {
+        _log.error(s);
+      }
+      throw new RuntimeException(s);
+    }
     getNameSupport().registerAgentInNameServer(_nodeURI, addr, getProtocolType());
   } //registerClient(MessageTransportClient client)
 
