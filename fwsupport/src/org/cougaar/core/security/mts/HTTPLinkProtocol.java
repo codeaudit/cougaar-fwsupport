@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -47,6 +48,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.cougaar.core.component.Service;
 import org.cougaar.core.component.ServiceAvailableEvent;
 import org.cougaar.core.component.ServiceAvailableListener;
 import org.cougaar.core.component.ServiceBroker;
@@ -70,10 +72,10 @@ import org.cougaar.mts.std.AttributedMessage;
 
 public class HTTPLinkProtocol extends LinkProtocol {
   
-  private LoggingService _log;
+  protected LoggingService _log;
   private URI _nodeURI;
   private Map _links = new Hashtable();
-  private ServletService _servletService;
+  private Service _servletService;
   protected int _port = -1;
   protected String _nodeName;
   public final String SERVLET_URI = "/httpmts";
@@ -177,8 +179,18 @@ public class HTTPLinkProtocol extends LinkProtocol {
   /**
    * Used to set the port.
    */
-  protected void setPort(ServletService ss) {
-    _port = ss.getHttpPort();
+  protected void setPort(Service ss) {
+    try {
+      Method m = ss.getClass().getMethod("getHttpPort", null);
+      Integer aPort = (Integer)m.invoke(ss, null);
+      _port = aPort.intValue();
+    }
+    catch (Exception e) {
+      if (_log.isErrorEnabled()) {
+        _log.error("Unable to obtain HTTP port number");
+      }
+    }
+    //_port = ss.getHttpPort();
   } //setPort(ServletService ss
   
   /**
@@ -214,7 +226,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * Set the Port and URI
    */
   private void init(ServiceBroker sb) {
-    ServletService servletService = (ServletService) 
+    Service servletService = (Service)
       sb.getService(this, servletServiceClass, null);
     setPort(servletService);
     setURI();
@@ -225,13 +237,20 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * Register the Servlet that will handle the messages on the receiving end.
    */
   private void registerServlet(ServiceBroker sb) {
-    _servletService = (ServletService) 
+    _servletService = (Service)
       sb.getService(this, servletServiceClass, null);
     try {
       if(_log.isDebugEnabled()) {
         _log.debug("registering " + getPath() + " with " + _servletService);
       }
-      _servletService.register(getPath(), createServlet());
+
+      // Use introspection to support both B11_2 and HEAD.
+      // TODO: this can be changed once B11_2 is no longer supported.
+      //_servletService.register(getPath(), createServlet());
+      Class parmTypes[] = {String.class, Servlet.class};
+      Method m = _servletService.getClass().getMethod("register", parmTypes);
+      Object parmValues[] = {getPath(), createServlet()};
+      m.invoke(_servletService, parmValues);
     } catch(IllegalArgumentException iae) {
       // an IllegalArgumentException could occur if the servlet path has already
       // been registered.  for example, both the HTTP and HTTPS LinkProtocols
