@@ -59,7 +59,7 @@ public class NetworkConfigurationPlugin
 
   protected void execute()
   {
-    _log.info("InitNodePlugin.execute");
+    _log.info("Network configuration plugin execute - nothing to do");
   }
 
 }
