@@ -24,9 +24,6 @@
  */ 
 package org.cougaar.core.security.mts;
 
-import java.lang.reflect.Method;
-
-import org.cougaar.core.component.Service;
 import org.cougaar.core.service.ServletService;
 import org.cougaar.mts.std.AttributedMessage;
 
@@ -40,21 +37,8 @@ public class HTTPSLinkProtocol extends HTTPLinkProtocol {
   public String getProtocol() {
     return "https";
   }
-  protected void setPort(Service ss) {
-    int httpsPort = -1;
-    try {
-      // Using introspecto to support both B11_2 and HEAD.
-      // This can be changed to the following line once B11_2 is no longer supported.
-      //httpsPort = ss.getHttpsPort();
-      Method m = _servletServiceClass.getMethod("getHttpsPort", null);
-      Integer aPort = (Integer)m.invoke(ss, null);
-      httpsPort = aPort.intValue();
-    }
-    catch (Exception e) {
-      if (_log.isErrorEnabled()) {
-        _log.error("Unable to set HTTPS port", e);
-      }
-    }
+  protected void setPort(ServletService ss) {
+    int httpsPort = ss.getHttpsPort();
     if(httpsPort == -1) {
       throw new RuntimeException("link protocol requires https (see parameter org.cougaar.lib.web.https.port).");
     }
@@ -64,12 +48,12 @@ public class HTTPSLinkProtocol extends HTTPLinkProtocol {
    * Returns TRUE
    */
   protected Boolean usesEncryptedSocket() {
-	  return Boolean.TRUE;
+    return Boolean.TRUE;
   }
   
    // hard-code value. higher than RMI but lower than SSLRMI
   protected int computeCost(AttributedMessage message) {
-	  return super.computeCost(message) * 3;
+    return super.computeCost(message) * 3;
   }
   // cost of DestinationLink is hard-coded to 500
 

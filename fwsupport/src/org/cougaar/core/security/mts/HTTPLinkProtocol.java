@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.PrintWriter;
-import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.MalformedURLException;
@@ -48,7 +47,6 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.cougaar.core.component.Service;
 import org.cougaar.core.component.ServiceAvailableEvent;
 import org.cougaar.core.component.ServiceAvailableListener;
 import org.cougaar.core.component.ServiceBroker;
@@ -72,22 +70,14 @@ import org.cougaar.mts.std.AttributedMessage;
 
 public class HTTPLinkProtocol extends LinkProtocol {
   
-  protected LoggingService _log;
+  private LoggingService _log;
   private URI _nodeURI;
   private Map _links = new Hashtable();
-  private Service _servletService;
+  private ServletService _servletService;
   protected int _port = -1;
   protected String _nodeName;
   public final String SERVLET_URI = "/httpmts";
-
-  /**
-   * The name of the servlet service.
-   * This is needed to support both Cougaar B11_2 and HEAD.
-   */  
-  private final static String SERVLET_SERVICE_CLASS =
-    "org.cougaar.lib.web.service.RootServletService";
-  protected Class _servletServiceClass;
-  
+     
   /**
    * Called via introspection by the Container. We use it to get the
    * node name for the HTTP(S) URI.
@@ -108,24 +98,14 @@ public class HTTPLinkProtocol extends LinkProtocol {
     _log = (LoggingService)sb.getService(this, LoggingService.class, null);
     // the ServletService here is the RootServletService
     // NOTE: only the HEAD contains the RootServletService class.
-    // we must change this to org.cougaar.lib.web.service.RootServletService
+    // we must change this to oorg.cougaar.lib.web.service.RootServletService
     // instead of ServletService in HEAD.
-    try {
-      _servletServiceClass = Class.forName(SERVLET_SERVICE_CLASS);
-    }
-    catch (ClassNotFoundException e) {
-      // This is B11_2 or earlier version. Use the ServletService instead.
-      _servletServiceClass = ServletService.class;
-    }
-    if (_log.isInfoEnabled()) {
-      _log.info("servletServiceClass: " + _servletServiceClass.getName());
-    }
-    if (sb.hasService(_servletServiceClass)) {
+    if (sb.hasService(ServletService.class)) {
       init(sb);
     } else {
       sb.addServiceListener(new ServiceAvailableListener(){
           public void serviceAvailable(ServiceAvailableEvent ae) {
-            if (_servletServiceClass.isAssignableFrom(ae.getService())) {
+            if (ServletService.class.isAssignableFrom(ae.getService())) {
               init(ae.getServiceBroker());
               ae.getServiceBroker().removeServiceListener(this);
             }
@@ -136,26 +116,17 @@ public class HTTPLinkProtocol extends LinkProtocol {
     // Also, we want the agent's proxy to the node-level
     // ServletService.  The blackboard is loaded late enough, so we
     // wait 'til then...  (hack for all versions before 11.2 HEAD)
-    if (sb.hasService(BlackboardService.class) && sb.hasService(_servletServiceClass)) {
+    if (sb.hasService(BlackboardService.class)) {
       registerServlet(sb);
     } else {
-      ServiceAvailableListener sal = new ServiceAvailableListener() {
-        private BlackboardService bbs;
-        private Service servletService;
-        public void serviceAvailable(ServiceAvailableEvent ae) {
-          if (BlackboardService.class.isAssignableFrom(ae.getService())) {
-            bbs = (BlackboardService)ae.getServiceBroker().getService(this, BlackboardService.class, null);
+      sb.addServiceListener(new ServiceAvailableListener(){
+          public void serviceAvailable(ServiceAvailableEvent ae) {
+            if (BlackboardService.class.isAssignableFrom(ae.getService())) {
+              registerServlet(ae.getServiceBroker());
+              ae.getServiceBroker().removeServiceListener(this);
+            }
           }
-          if (_servletServiceClass.isAssignableFrom(ae.getService())) {
-            servletService = (Service)ae.getServiceBroker().getService(this, _servletServiceClass, null);
-          }
-          if (bbs != null && servletService != null) {
-            registerServlet(ae.getServiceBroker());
-            ae.getServiceBroker().removeServiceListener(this);
-          }
-        }
-      };
-      sb.addServiceListener(sal);
+        });
     }   
   } //load()
   
@@ -164,7 +135,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * the ServletService.unregisterAll() is invoked. 
    */
   public void unload() {
-    getServiceBroker().releaseService(this, _servletServiceClass, _servletService);  
+    getServiceBroker().releaseService(this, ServletService.class, _servletService);  
     super.unload();
   } //unload() 
   
@@ -188,32 +159,22 @@ public class HTTPLinkProtocol extends LinkProtocol {
   /**
    * Used to set the port.
    */
-  protected void setPort(Service ss) {
-    try {
-      Method m = _servletServiceClass.getMethod("getHttpPort", null);
-      Integer aPort = (Integer)m.invoke(ss, null);
-      _port = aPort.intValue();
-    }
-    catch (Exception e) {
-      if (_log.isErrorEnabled()) {
-        _log.error("Unable to obtain HTTP port number");
-      }
-    }
-    //_port = ss.getHttpPort();
+  protected void setPort(ServletService ss) {
+    _port = ss.getHttpPort();
   } //setPort(ServletService ss
   
   /**
    * determined the underlying socket is encrypted.
    */
   protected Boolean usesEncryptedSocket() {
-	  return Boolean.FALSE;
+    return Boolean.FALSE;
   } //usesEncryptedSocket()
   
   /**
    * Returns 500 (hard-coded value less than RMI).
    */
   protected int computeCost(AttributedMessage message) {
-	  return 500;
+    return 500;
   }
   
   protected String getPath() {
@@ -235,31 +196,24 @@ public class HTTPLinkProtocol extends LinkProtocol {
    * Set the Port and URI
    */
   private void init(ServiceBroker sb) {
-    Service servletService = (Service)
-      sb.getService(this, _servletServiceClass, null);
+    ServletService servletService = (ServletService) 
+      sb.getService(this, ServletService.class, null);
     setPort(servletService);
     setURI();
-    sb.releaseService(this, _servletServiceClass, servletService); 
+    sb.releaseService(this, ServletService.class, servletService); 
   } //init(ServiceBroker sb)
 
   /**
    * Register the Servlet that will handle the messages on the receiving end.
    */
   private void registerServlet(ServiceBroker sb) {
-    _servletService = (Service)
-      sb.getService(this, _servletServiceClass, null);
+    _servletService = (ServletService) 
+      sb.getService(this, ServletService.class, null);
     try {
       if(_log.isDebugEnabled()) {
         _log.debug("registering " + getPath() + " with " + _servletService);
       }
-
-      // Use introspection to support both B11_2 and HEAD.
-      // TODO: this can be changed once B11_2 is no longer supported.
-      //_servletService.register(getPath(), createServlet());
-      Class parmTypes[] = {String.class, Servlet.class};
-      Method m = _servletServiceClass.getMethod("register", parmTypes);
-      Object parmValues[] = {getPath(), createServlet()};
-      m.invoke(_servletService, parmValues);
+      _servletService.register(getPath(), createServlet());
     } catch(IllegalArgumentException iae) {
       // an IllegalArgumentException could occur if the servlet path has already
       // been registered.  for example, both the HTTP and HTTPS LinkProtocols
@@ -289,9 +243,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
       _nodeURI = new URI(getProtocol() + "://" + me.getHostName() + ':' + 
                          _port + "/$" + _nodeName + getPath());
     } catch (Exception e) {
-      if (_log.isErrorEnabled()) {
-        _log.error("Unable to set node URI", e);
-      }
+      e.printStackTrace();
     }
   } //setURI()
 
@@ -314,27 +266,6 @@ public class HTTPLinkProtocol extends LinkProtocol {
 
   public void registerClient(MessageTransportClient client) {
     MessageAddress addr = client.getMessageAddress();
-    if (addr == null) {
-      String s = "Unable to register client. Client address is null";
-      if (_log.isErrorEnabled()) {
-        _log.error(s);
-      }
-      throw new RuntimeException(s);
-    }
-    if (_nodeURI == null) {
-      String s = "Unable to register client. node URI is null";
-      if (_log.isErrorEnabled()) {
-        _log.error(s);
-      }
-      throw new RuntimeException(s);
-    }
-    if (getProtocolType() == null) {
-      String s = "Unable to register client. Protocol type is null";
-      if (_log.isErrorEnabled()) {
-        _log.error(s);
-      }
-      throw new RuntimeException(s);
-    }
     getNameSupport().registerAgentInNameServer(_nodeURI, addr, getProtocolType());
   } //registerClient(MessageTransportClient client)
 
@@ -373,7 +304,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
      // attribute used securityservices to determine whether or not
      // to encrypt the raw message.
      attrs.addValue(MessageAttributes.ENCRYPTED_SOCKET_ATTRIBUTE,
-    			   usesEncryptedSocket());
+             usesEncryptedSocket());
     } //addMessageAttributes(MessageAttributes attrs)
 
     public int cost(AttributedMessage message) {
@@ -388,7 +319,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
     } //int cost(AttributedMessage message)
 
     public boolean isValid() {
-    	return true;
+      return true;
     }
 
     public MessageAddress getDestination() {
