@@ -31,7 +31,7 @@ public class HTTPSLinkProtocol extends HTTPLinkProtocol {
   public HTTPSLinkProtocol() {
     super();
   }
-  public String getWPEntryType() {
+  public String getProtocolType() {
     return "-HTTPS"; 
   }
   public String getProtocol() {

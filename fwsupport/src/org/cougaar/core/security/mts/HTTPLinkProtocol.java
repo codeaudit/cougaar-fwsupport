@@ -54,7 +54,6 @@ import org.cougaar.core.mts.MessageAddress;
 import org.cougaar.core.mts.MessageAttributes;
 import org.cougaar.core.mts.MessageTransportClient;
 import org.cougaar.core.node.NodeIdentificationService;
-import org.cougaar.core.security.util.ServletRequestUtil;
 import org.cougaar.core.service.BlackboardService;
 import org.cougaar.core.service.LoggingService;
 import org.cougaar.core.service.ServletService;
@@ -146,9 +145,9 @@ public class HTTPLinkProtocol extends LinkProtocol {
   /**
    * Get the WP Entry Type for registering and querying for WP entries.
    */
-  public String getWPEntryType() {
+  public String getProtocolType() {
     return "-HTTP"; 
-  } //getWPEntryType()
+  } //getProtocolType()
   
   /**
    * Get the protocol to use for http connections.
@@ -267,12 +266,12 @@ public class HTTPLinkProtocol extends LinkProtocol {
 
   public void registerClient(MessageTransportClient client) {
     MessageAddress addr = client.getMessageAddress();
-    getNameSupport().registerAgentInNameServer(_nodeURI, addr, getWPEntryType());
+    getNameSupport().registerAgentInNameServer(_nodeURI, addr, getProtocolType());
   } //registerClient(MessageTransportClient client)
 
   public void unregisterClient(MessageTransportClient client) {
     MessageAddress addr = client.getMessageAddress();
-    getNameSupport().unregisterAgentInNameServer(_nodeURI, addr, getWPEntryType());
+    getNameSupport().unregisterAgentInNameServer(_nodeURI, addr, getProtocolType());
   } //unregisterClient(MessageTransportClient client)
 
   protected class HTTPDestinationLink implements DestinationLink {
@@ -328,7 +327,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
     } //getDestination()
 
     public Class getProtocolClass() {
-      return HTTPLinkProtocol.class;
+      return HTTPLinkProtocol.this.getClass();
     } //getProtocolClass()
 
     public Object getRemoteReference() {
@@ -357,19 +356,11 @@ public class HTTPLinkProtocol extends LinkProtocol {
           }
           throw (MisdeliveredMessageException) response;
         } else {
-          CommFailureException cfe 
-            = new CommFailureException((Exception) response);
-          if (_log.isWarnEnabled()) {
-            _log.warn("Exception forwarding message", (Exception) response);
-          }
-          throw cfe;
+          throw new CommFailureException((Exception) response);
         }
       } catch (Exception e) {
-        CommFailureException cfe = new CommFailureException(e);
-        if (_log.isWarnEnabled()) {
-          _log.warn("Exception forwarding message", e);
-        }
-        throw cfe;
+        //e.printStackTrace();
+        throw new CommFailureException(e);
       }
     } //forwardMessage(AttributedMessage message)
 
@@ -385,7 +376,7 @@ public class HTTPLinkProtocol extends LinkProtocol {
         if (_url == null) {
           if (!_wpPending) {
             _wpPending = true;
-            getNameSupport().lookupAddressInNameServer(_target, getWPEntryType(),
+            getNameSupport().lookupAddressInNameServer(_target, getProtocolType(),
                                                        _wpCallback);
           } 
           throw new UnregisteredNameException(_target);
@@ -398,8 +389,8 @@ public class HTTPLinkProtocol extends LinkProtocol {
     // if streaming format is different (e.g., SOAP)
     protected Object postMessage(URL url, AttributedMessage message) 
       throws IOException, ClassNotFoundException, UnknownHostException {
-      HttpURLConnection conn = null;
       ObjectInputStream ois = null;
+      ObjectOutputStream out = null;
       try {
         if(_log.isDebugEnabled()) {
           _log.debug("sending " + message.getRawMessage().getClass().getName() + "(" + 
@@ -415,12 +406,33 @@ public class HTTPLinkProtocol extends LinkProtocol {
         // However, This could pose a resource consumption issue.  If this is the 
         // case, we need to use a different HTTP Client implementation such as 
         // Jakarta's Common HTTP Client.
-        conn = ServletRequestUtil.sendRequest(url.toString(), message, "POST");
+        HttpURLConnection conn = (HttpURLConnection)url.openConnection();
+        // Don't follow redirects automatically.
+        conn.setInstanceFollowRedirects(false);
+        // Let the system know that we want to do output
+        conn.setDoOutput(true);
+        // Let the system know that we want to do input
+        conn.setDoInput(true);
+        // No caching, we want the real thing
+        conn.setUseCaches(false);
+        // Specify the content type
+        conn.setRequestProperty("Content-Type",
+                               "application/x-www-form-urlencoded");
+        conn.setRequestMethod("POST");
+        // write object to output stream
+        out = new ObjectOutputStream(conn.getOutputStream());
+        out.writeObject(message);
+        out.flush();
+
+        // get response
         ois = new ObjectInputStream(conn.getInputStream());
         return ois.readObject();
       } catch(Exception e) {
         _log.debug("Exception in postMessge", e);
       } finally {
+        if (out != null) {
+          out.close();
+        }
         if (ois != null) {
           ois.close();
         }
