@@ -56,4 +56,9 @@ public class HTTPSLinkProtocol extends HTTPLinkProtocol {
 	  return super.computeCost(message) * 3;
   }
   // cost of DestinationLink is hard-coded to 500
+
+  public Class getProtocolClass() {
+    return HTTPSLinkProtocol.class;
+  } //getProtocolClass()
+
 }
