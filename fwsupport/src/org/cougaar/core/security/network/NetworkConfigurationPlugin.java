@@ -28,6 +28,7 @@ package org.cougaar.core.security.network;
 
 import org.cougaar.core.component.BindingSite;
 import org.cougaar.core.component.ServiceBroker;
+import org.cougaar.core.node.NodeControlService;
 import org.cougaar.core.plugin.ComponentPlugin;
 import org.cougaar.core.security.services.network.NetworkConfigurationService;
 import org.cougaar.core.security.providers.NetworkConfigurationServiceProvider;
@@ -35,31 +36,39 @@ import org.cougaar.core.service.LoggingService;
 import org.cougaar.util.log.Logger;
 import org.cougaar.util.log.LoggerFactory;
 
-
 public class NetworkConfigurationPlugin
   extends ComponentPlugin
 {
-  private ServiceBroker _sb;
   private Logger _log;
 
   protected void setupSubscriptions()
   {
     BindingSite bs = getBindingSite();
-    _sb = bs.getServiceBroker();
-    _log = (LoggingService) _sb.getService(this,
-                                           LoggingService.class,
-                                           null);
+    ServiceBroker sb  = bs.getServiceBroker();
+    ServiceBroker rsb = null;
+    _log = (LoggingService) sb.getService(this,
+                                          LoggingService.class,
+                                          null);
+    NodeControlService ncs = (NodeControlService)
+      sb.getService(this, NodeControlService.class, null);
+    rsb = ncs.getRootServiceBroker();
+    if (rsb == null) {
+      throw new RuntimeException("Unable to get root service broker");
+    }
+
     if (_log.isInfoEnabled()) {
       _log.info("Initializing the Network Configuration Service");
     }
-    _sb.addService(NetworkConfigurationService.class,
-                   new NetworkConfigurationServiceProvider(_sb));
+    rsb.addService(NetworkConfigurationService.class,
+                   new NetworkConfigurationServiceProvider(sb));
   }
 
 
   protected void execute()
   {
-    _log.info("Network configuration plugin execute - nothing to do");
+    if (_log.isInfoEnabled()) {
+      _log.info("Network configuration plugin execute - nothing to do");
+    }
   }
 
 }
