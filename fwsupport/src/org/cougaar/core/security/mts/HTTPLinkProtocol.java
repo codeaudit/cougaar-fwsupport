@@ -136,17 +136,26 @@ public class HTTPLinkProtocol extends LinkProtocol {
     // Also, we want the agent's proxy to the node-level
     // ServletService.  The blackboard is loaded late enough, so we
     // wait 'til then...  (hack for all versions before 11.2 HEAD)
-    if (sb.hasService(BlackboardService.class)) {
+    if (sb.hasService(BlackboardService.class) && sb.hasService(_servletServiceClass)) {
       registerServlet(sb);
     } else {
-      sb.addServiceListener(new ServiceAvailableListener(){
-          public void serviceAvailable(ServiceAvailableEvent ae) {
-            if (BlackboardService.class.isAssignableFrom(ae.getService())) {
-              registerServlet(ae.getServiceBroker());
-              ae.getServiceBroker().removeServiceListener(this);
-            }
+      ServiceAvailableListener sal = new ServiceAvailableListener() {
+        private BlackboardService bbs;
+        private Service servletService;
+        public void serviceAvailable(ServiceAvailableEvent ae) {
+          if (BlackboardService.class.isAssignableFrom(ae.getService())) {
+            bbs = (BlackboardService)ae.getServiceBroker().getService(this, BlackboardService.class, null);
           }
-        });
+          if (_servletServiceClass.isAssignableFrom(ae.getService())) {
+            servletService = (Service)ae.getServiceBroker().getService(this, _servletServiceClass, null);
+          }
+          if (bbs != null && servletService != null) {
+            registerServlet(ae.getServiceBroker());
+            ae.getServiceBroker().removeServiceListener(this);
+          }
+        }
+      };
+      sb.addServiceListener(sal);
     }   
   } //load()
   
