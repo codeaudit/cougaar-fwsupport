@@ -1,0 +1,17 @@
+#!/usr/bin/ruby
+####################################################
+# Rule to insert JaasAgentBinder
+
+if !(defined?($MTS_PROTOCOL)) then
+   $MTS_PROTOCOL = "http"
+end
+
+httpLinkProtocol = "org.cougaar.core.security.mts.HTTPLinkProtocol"
+protocolInsertion = "Node.AgentManager.Agent.MessageTransport.Component"
+
+society.each_node do |node_agent|
+  node_agent.add_component do |c|
+    c.classname = httpLinkProtocol
+    c.insertionpoint = protocolInsertion
+  end
+end
