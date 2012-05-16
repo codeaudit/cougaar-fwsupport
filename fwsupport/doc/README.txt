@@ -67,8 +67,7 @@ as defined by org.cougaar.core.wp.resolver.ConfigReader:
 NAME=TYPE[:,]SCHEME://URI_INFO.  The standard format is used to bootstrap
 using RMI.  When using an alternative transport, the naming server
 configuration will need to be defined in two parts; the first part is an
-alias and the second part is the MTS address
-(see bug report http://bugs.cougaar.org/show_bug.cgi?id=3703).  An alias is
+alias and the second part is the MTS address.  An alias is
 defined by org.cougaar.name.server=NodeX@ or, if there are multiple WPs, with
 the usual "WP-NUMBER" pattern: org.cougaar.name.server.WP-9=NodeX@. An alias
 is a WP cache (local bind) entry indicating that there's a WP on NodeX. 
@@ -97,8 +96,7 @@ the HTTP(S) MTS LinkProtocol configuration parameter is set by the
 $CIP/csmart/config/rules/security/mts/http[s]_mts.rule file.
 
 To enable http(s), see section 9.5 Servlet Server Install Guide of the Cougaar 
-Developers' Guide 
-(http://cougaar.org/docman/view.php/17/133/CDG_11_2_Final.pdf).
+Developers' Guide.
 
 NOTE: Special care must be taken when specifying an agent name in the
 configuration.  '$' will need to be escaped with a backslash on the shell
